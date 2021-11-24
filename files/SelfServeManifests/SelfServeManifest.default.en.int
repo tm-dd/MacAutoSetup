@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>managed_installs</key>
+	<array>
+		<string>commercial_maple_Maple_2021</string>
+		<string>commercial_mathematica_Mathematica_12.3.1_for_x86-64_CPUs</string>
+		<string>commercial_matlab_Matlab_R2021b</string>
+		<string>commercial_standard_11_Keynote</string>
+		<string>commercial_standard_11_Numbers</string>
+		<string>commercial_standard_11_Pages</string>
+		<string>mactex_MacTeX_</string>
+		<string>standard_apps_Audacity</string>
+		<string>standard_apps_GIMP</string>
+		<string>standard_apps_Google_Chrome</string>
+		<string>standard_apps_VLC</string>
+		<string>standard_en_apps_Firefox</string>
+		<string>standard_prebuilt_pkgs_Nextcloud</string>
+	</array>
+	<key>managed_uninstalls</key>
+	<array/>
+</dict>
+</plist>

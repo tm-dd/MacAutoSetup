@@ -1,0 +1,5 @@
+"COMPUTER NAME","SERIAL","Time Machine login","Time Machine password","FILEVAULT 2 KEY","Munki ClientIdentifier","Munki SoftwareRepoURL","Munki login","Munki password","Munki SelfServeManifest","DATE OF LAST UPDATE"
+"ExampleArmMacDE","C0123456789ABC","tmbmm","Backup.123","1234-5678-90AB-CDEF-GIHJ","arm-mac-de","https://munki.example.org/testing/","standarduser","standard_password","SelfServeManifest.default.de.arm","2021-10-20"
+"ExampleArmMacEN","C0123456789ABC","tmbmm","Backup.123","1234-5678-90AB-CDEF-GIHJ","arm-mac-en","https://munki.example.org/testing/","professionaluser","very_secure","SelfServeManifest.default.en.arm","2021-10-21"
+"ExampleIntMacDE","C0123456789ABC","tmbmm","Backup.123","1234-5678-90AB-CDEF-GIHJ","int-mac-de","https://munki.example.org/repo/","professionaluser","very_secure","SelfServeManifest.default.de.int","2021-10-22"
+"ExampleIntMacEN","C0123456789ABC","tmbmm","Backup.123","1234-5678-90AB-CDEF-GIHJ","int-mac-en","https://munki.example.org/repo/","standarduser","standard_password","SelfServeManifest.default.en.int","2021-10-23"
