@@ -164,11 +164,6 @@ echo
 # delete temporary files
 (set -x; sudo rm -rfv /Users/Shared/Relocated\ Items /Users/*/Desktop/*.nosync)
 
-# rename Mac
-( set -x; sudo scutil --set ComputerName "${macName}" )
-( set -x; sudo scutil --set LocalHostName "${macNameWithoutSpace}" )
-( set -x; sudo scutil --set HostName "${macName}" )
-
 sleep 2
 
 # setup FileVault 2 
@@ -183,7 +178,7 @@ fi
 sleep 2
 
 # setup Time Machine
-(set -x; open afp://${tmLogin}:${tmPassword}@tm2/TimeMachine/)
+(set -x; open afp://${tmLogin}:${tmPassword}@timemachineserver.example.org/TimeMachine/)
 echo
 echo "Please configure Time Machine manually, now."
 echo "Use the password ${tmPassword} and the encryption password $fileVault2Key for this step and press enter to continue."
