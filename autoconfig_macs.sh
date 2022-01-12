@@ -299,7 +299,8 @@ dirOfNewMacFiles="${scriptDir}/${macName}"
 (set -x; system_profiler -xml | bzip2 -9 > "${dirOfNewMacFiles}/system_profile.spx.bz2")
 
 # save values
-echo "\"${macName}\",\"${serialNumber}\",\"${tmLogin}\",\"${tmPassword}\",\"${fileVault2Key}\",\"${MunkiClientIdentifier}\",\"${MunkiSoftwareRepoURL}\",\"${MunkiLogin}\",\"${MunkiPassword}\",\"${MunkiCSVSelfServeManifest}\",\"${todayDate}\"" >> "${scriptDir}/config.csv"
+echo '' >> "${scriptDir}/config.csv"  # if the last line have not newline 
+echo "\"${macName}\",\"${serialNumber}\",\"${tmLogin}\",\"${tmPassword}\",\"${fileVault2Key}\",\"${MunkiCSVClientIdentifier}\",\"${MunkiCSVSoftwareRepoURL}\",\"${MunkiCSVLogin}\",\"${MunkiCSVPassword}\",\"${MunkiCSVSelfServeManifest}\",\"${todayDate}\"" >> "${scriptDir}/config.csv"
 echo "Serial Number: ${serialNumber}" > "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
 echo "FileVault 2 Key: ${fileVault2Key}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
 echo "As of: ${todayDate}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
