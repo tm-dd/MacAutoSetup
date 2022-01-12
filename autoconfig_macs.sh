@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2021 tm-dd (Thomas Mueller)
+# Copyright (c) 2022 tm-dd (Thomas Mueller)
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,40 +22,36 @@
 #
 
 
-### settings and check ###
+
+####################
+### first checks ###
+####################
 
 # don't allow running for user root (makes the Time Machine configuration easier)
-if [ $USER == "root" ]
-then
-	echo "Do NOT start this script as user root !!!"
-	exit -1
-fi
-
-# default vaulues
-DefaultSoftwareRepoURL='https://munki.example.org/repo/'
-DefaultClientIdentifier='int-mac-en'
-DefaultMunkiLogin='initial'
-DefaultMunkiPassword='VerySuperSecurePassword'
-DefaultAdminUser=`whoami`
-
-# hide the current account (can be a problem on Macs with Apple CPU, because this login was sometimes not visible, after rebooting with FileVault 2)
-hideCurrentAccount="no"
-
-### read settings ####
-
-# get serial number
-serialNumber=$(/usr/sbin/ioreg -l | /usr/bin/grep "IOPlatformSerialNumber" | /usr/bin/awk -F '"' '{ print $4 }')
+if [ $USER == "root" ]; then echo "Do NOT start this script as user root !!!"; exit -1; fi
 
 # script directory
 scriptDir="`dirname $0`"
 
-# fix if newline is missing on the last line
-echo >> "${scriptDir}/config.csv"
+# check csv file #
+if [ ! -f "${scriptDir}/config.csv" ]; then echo 'ERROR: Could not read CSV file "'"${scriptDir}/config.csv"'".'; exit -1; fi
+
+
+
+################
+### settings ###
+################
+
+# the current admin account
+currentAdminUserNameOfThisMac=`whoami`
+
+# get serial number
+serialNumberSystem=$(/usr/sbin/ioreg -l | /usr/bin/grep "IOPlatformSerialNumber" | /usr/bin/awk -F '"' '{ print $4 }')
 
 # read settings from csv file
 OIFS="${IFS}"
 IFS=$'\n'
-for i in $(grep '","'${serialNumber}'","' "${scriptDir}/config.csv" | tail -n 1)
+for i in $(grep '","'${serialNumberSystem}'","' "${scriptDir}/config.csv" | tail -n 1)
 do
 
 	i=`echo $i | sed 's/,,/,"",/g' | sed 's/,,/,"",/g' | sed 's/,$/,""/'`   # fix '"Val1",,,"Val4",,' to '"Val1","","","Val4","",""'
@@ -75,12 +71,28 @@ do
 done
 IFS="${OIFS}"
 
-todayDate=`date '+%Y-%m-%d'`
-macNameWithoutSpace=`echo "${macName}" | sed 's/ //g'`
+# hide the current account (can be a problem on Macs with Apple CPU, because this login was sometimes not visible, after rebooting with FileVault 2)
+hideCurrentAccount="no"
+
+# Time Machine server
+timeMachineServer='tm.example.org'
+
+# Time Machine share
+# example 1: timeMachineShare="afp://${tmLogin}:${tmPassword}@${timeMachineServer}/TimeMachine/"
+# example 2: timeMachineShare="smb://${tmLogin}:${tmPassword}@${timeMachineServer}/${tmLogin}"
+timeMachineShare="smb://${tmLogin}:${tmPassword}@${timeMachineServer}/${tmLogin}"
+
+# Time Machine storage size
+diskSizeInGigaByte=`df -g / | grep '^/dev/' | awk '{ print $2 }'`
+maxTimeMachineBackupSizeInMegabyte=`echo $(($diskSizeInGigaByte*13000/10)) | awk -F '.' '{ print $1 }'`
+
+# delete this
+deleteThisApps="/Applications/GarageBand.app /Applications/iMovie.app /Applications/Keynote.app /Applications/Numbers.app /Applications/Pages.app"
+deleteTemporaryFiles="/Users/Shared/Relocated\ Items /Users/*/Desktop/*.nosync"
 
 # output settings
 echo
-echo "current settings:"
+echo "current settings from the CSV file:"
 echo
 echo "   name of this mac: $macName"
 echo "   serial number: $serialNumber"
@@ -91,17 +103,47 @@ echo "   Munki SoftwareRepoURL: $MunkiCSVSoftwareRepoURL"
 echo "   Munki authorization login: $MunkiCSVLogin"
 echo "   Munki authorization password: $MunkiCSVPassword"
 echo "   Munki SelfServeManifest file: $MunkiCSVSelfServeManifest"
-if [ "${fileVault2Key}" == "-" ]; then echo "   SKIP FileVault 2 configuration, later."; fi
+echo "   Time Machine Share: $timeMachineShare"
+echo "   max size of Time Machine: $maxTimeMachineBackupSizeInMegabyte MB"
+echo "   delete this: $deleteTemporaryFiles $deleteThisApps"
 echo
+
+if [ "${fileVault2Key}" == "-" ]; then echo -e "   SKIP FileVault 2 configuration, later.\n"; fi
 
 # let the user check this settings
 echo "Press ENTER to continue ..."
 read
 
 
+
+#####################
+### second checks ###
+#####################
+
+# serial number was not found
+if [ -z "${serialNumber}" ]; then echo "ERROR: Could not find the serial number '"${serialNumberSystem}"' in the CSV file."; exit -1; fi
+
+# no correct time machine settings
+if [ -z "${tmLogin}" ] || [ -z "${tmPassword}" ]; then echo "Information: Missing some settings for Time Machine."; fi
+
+# no correct Munki settings
+if [ -z "${MunkiCSVClientIdentifier}" ] || [ -z "${MunkiCSVSoftwareRepoURL}" ] || [ -z "${MunkiCSVLogin}" ] || [ -z "${MunkiCSVPassword}" ] || [ -z "${MunkiCSVSelfServeManifest}" ]; then echo "ERROR: Missing at least one of the upper settings for MUNKI."; exit -1; fi
+
+
+
+################################
 ### setup mac configurations ###
+################################
+
+todayDate=`date '+%Y-%m-%d'`
 
 echo "Configure some default settings ..."; echo
+
+# rename Mac
+macNameWithoutSpace=`echo "${macName}" | sed 's/ //g'`
+( set -x; sudo scutil --set ComputerName "${macName}" )
+( set -x; sudo scutil --set LocalHostName "${macNameWithoutSpace}" )
+( set -x; sudo scutil --set HostName "${macName}" )
 
 # enable Firewall (commands from https://superuser.com/questions/472038/how-can-i-enable-the-firewall-via-command-line-on-mac-os-x)
 (set -x; sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on)
@@ -117,7 +159,7 @@ fi
 echo
 
 # delete preinstalled Apps
-(set -x; sudo rm -rf /Applications/GarageBand.app /Applications/iMovie.app /Applications/Keynote.app /Applications/Numbers.app /Applications/Pages.app)
+(set -x; sudo rm -rf $deleteThisApps)
 
 # delete local Time Machine snapshots
 (set -x; tmutil deletelocalsnapshots /)
@@ -144,11 +186,6 @@ echo
 # show setting
 (set -x; sudo pmset -g)
 
-# rename Mac
-(set -x; sudo scutil --set ComputerName "Mac")
-(set -x; sudo scutil --set LocalHostName "Mac")
-(set -x; sudo scutil --set HostName "Mac")
-
 # set and read update setting (check for updates and install system data files and security updates)
 (set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled YES)
 (set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload NO)
@@ -162,7 +199,7 @@ echo
 (set -x; sudo defaults write /Library/Preferences/com.apple.loginwindow showInputMenu 1)
 
 # delete temporary files
-(set -x; sudo rm -rfv /Users/Shared/Relocated\ Items /Users/*/Desktop/*.nosync)
+(set -x; sudo rm -rfv $deleteTemporaryFiles)
 
 sleep 2
 
@@ -173,20 +210,37 @@ then
 	fileVault2Key=`echo $(ps awux ; dd if=/dev/random bs=1024 count=1 2> /dev/null) | md5 | awk '{ print "" $1 }'`
 else
 	echo "Enter password to try to activate FileVault 2."
-	fileVault2Key=`sudo fdesetup enable -user ${DefaultAdminUser} | awk -F "'" '{ print $2 }'` && echo "The new FileVault 2 key is: $fileVault2Key"
+	fileVault2Key=`sudo fdesetup enable -user ${currentAdminUserNameOfThisMac} | awk -F "'" '{ print $2 }'` && echo "The new FileVault 2 key is: $fileVault2Key"
 fi
 sleep 2
 
 # setup Time Machine
-(set -x; open afp://${tmLogin}:${tmPassword}@timemachineserver.example.org/TimeMachine/)
+(set -x; open $timeMachineShare)
 echo
-echo "Please configure Time Machine manually, now."
-echo "Use the password ${tmPassword} and the encryption password $fileVault2Key for this step and press enter to continue."
+echo "Please configure Time Machine manually, now OR SKIP this step."
+echo "Use the password ${tmPassword} and the encryption password $fileVault2Key for this step and PRESS ENTER TO CONTINUE."
 (set -x; open /System/Applications/System\ Preferences.app)
 read
 
+# set max Time Maschine storage size
+echo "Give the Terminal 'Full Disk Access' to try to setup the max size of $maxTimeMachineBackupSizeInMegabyte MB for Time Machine Backups and PRESS ENTER."
+read
+echo -e "Try to set the max size of Time Machine to $maxTimeMachineBackupSizeInMegabyte MB .\n"
+(set -x; sudo defaults write /Library/Preferences/com.apple.TimeMachine.plist MaxSize -integer $maxTimeMachineBackupSizeInMegabyte)
 
+# the automatic configuration is disabled and maybe buggy and insecure at the moment
+# cd /Volumes/TimeMachine || ( echo "ERROR: Could not mount Time Machine server."; sleep 10 )
+# echo "$fileVault2Key" | /usr/bin/hdiutil create -size 2000g -volname "Time Machine" -encryption AES-256 -type SPARSEBUNDLE -fs "HFS+J" -stdinpass "/Volumes/TimeMachine/`hostname -s`_`ifconfig en0 | grep ether | awk -F 'ether ' '{ print $2 }' | sed 's/://g' | sed 's/ //g'`.sparsebundle"
+# /usr/bin/defaults write com.apple.systempreferences TMShowUnsupportedNetworkVolumes 1
+# tmutil setdestination $timeMachineShare
+# tmutil enable
+# tmutil startbackup
+
+
+
+###################
 ### setup munki ###
+###################
 
 echo "Setup Munki ..."; echo
 
@@ -196,23 +250,13 @@ echo "Setup Munki ..."; echo
 echo; sleep 3
 
 # setup Munki ClientIdentifier
-if [ "${MunkiCSVClientIdentifier}" = "" ]; 
-then MunkiClientIdentifier="${DefaultClientIdentifier}"
-else MunkiClientIdentifier="${MunkiCSVClientIdentifier}"
-fi
-(set -x; sudo defaults write /Library/Preferences/ManagedInstalls ClientIdentifier "${MunkiClientIdentifier}")
+(set -x; sudo defaults write /Library/Preferences/ManagedInstalls ClientIdentifier "${MunkiCSVClientIdentifier}")
 
 # setup the Munki SoftwareRepoURL
-if [ "${MunkiCSVSoftwareRepoURL}" = "" ]
-then MunkiSoftwareRepoURL="${DefaultSoftwareRepoURL}"
-else MunkiSoftwareRepoURL="${MunkiCSVSoftwareRepoURL}"
-fi
-(set -x; sudo defaults write /Library/Preferences/ManagedInstalls SoftwareRepoURL "${MunkiSoftwareRepoURL}")
+(set -x; sudo defaults write /Library/Preferences/ManagedInstalls SoftwareRepoURL "${MunkiCSVSoftwareRepoURL}")
 
 # setup the login and password for protected packages in the Munki repository
-if [ "${MunkiCSVLogin}" != "" ]; then MunkiLogin="${MunkiCSVLogin}"; else MunkiLogin="${DefaultMunkiLogin}"; fi
-if [ "${MunkiCSVPassword}" != "" ]; then MunkiPassword="${MunkiCSVPassword}"; else MunkiPassword="${DefaultMunkiPassword}"; fi
-MunkiAuthorization=`python -c 'import base64; print "%s" % base64.b64encode("'${MunkiLogin}':'${MunkiPassword}'")'`
+MunkiAuthorization=`python -c 'import base64; print "%s" % base64.b64encode("'${MunkiCSVLogin}':'${MunkiCSVPassword}'")'`
 (set -x; sudo defaults write /Library/Preferences/ManagedInstalls.plist AdditionalHttpHeaders -array "Authorization: Basic ${MunkiAuthorization}")
 
 # output the current settings
@@ -232,18 +276,15 @@ then
 	(set -x; sudo /usr/sbin/chown root "/Library/Managed Installs/manifests/SelfServeManifest")
 	(set -x; sudo /usr/bin/chgrp admin "/Library/Managed Installs/manifests/SelfServeManifest")
 	(set -x; sudo /bin/cat "/Library/Managed Installs/manifests/SelfServeManifest")
-else
-	if [ "${MunkiCSVSelfServeManifest}" != "" ]
-	then
-		echo "ERROR: The following file was not found."
-		(set -x; ls "${MunkiCSVSelfServeManifestFilePath}")
-	fi
 fi
 
 echo
 
 
-### write files ###
+
+###########################
+### create client files ###
+###########################
 
 echo "Write files ..."; echo
 
@@ -266,17 +307,20 @@ echo "As of: ${todayDate}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSp
 echo
 
 
-### install software and possible updates ###
+
+####################################
+### install software and updates ###
+####################################
 
 echo "Install software ..."; echo
 
 # copy admin_files
-(set -x; cp -a "${scriptDir}/files/admin_files" "/Users/${DefaultAdminUser}/Desktop/admin_files")
-(set -x; sudo /usr/bin/xattr -c -r "/Users/${DefaultAdminUser}/Desktop/admin_files")
-(set -x; sudo /usr/bin/xattr -r -d com.apple.quarantine "/Users/${DefaultAdminUser}/Desktop/admin_files")
-(set -x; sudo /usr/sbin/chown ${DefaultAdminUser} "/Users/${DefaultAdminUser}/Desktop/admin_files")
-(set -x; sudo /usr/bin/chgrp staff "/Users/${DefaultAdminUser}/Desktop/admin_files")
-(set -x; sudo /bin/chmod -R 755 "/Users/${DefaultAdminUser}/Desktop/admin_files")
+(set -x; cp -a "${scriptDir}/files/admin_files" "/Users/${currentAdminUserNameOfThisMac}/Desktop/admin_files")
+(set -x; sudo /usr/bin/xattr -c -r "/Users/${currentAdminUserNameOfThisMac}/Desktop/admin_files")
+(set -x; sudo /usr/bin/xattr -r -d com.apple.quarantine "/Users/${currentAdminUserNameOfThisMac}/Desktop/admin_files")
+(set -x; sudo /usr/sbin/chown ${currentAdminUserNameOfThisMac} "/Users/${currentAdminUserNameOfThisMac}/Desktop/admin_files")
+(set -x; sudo /usr/bin/chgrp staff "/Users/${currentAdminUserNameOfThisMac}/Desktop/admin_files")
+(set -x; sudo /bin/chmod -R 755 "/Users/${currentAdminUserNameOfThisMac}/Desktop/admin_files")
 echo
 
 # script to setup the default user
@@ -290,6 +334,6 @@ echo
 echo
 
 # run the update script
-exec sudo /bin/bash "/Users/${DefaultAdminUser}/Desktop/admin_files/start_updates_mac.sh" 
+exec sudo /bin/bash "/Users/${currentAdminUserNameOfThisMac}/Desktop/admin_files/start_updates_mac.sh" 
 
 exit 0
