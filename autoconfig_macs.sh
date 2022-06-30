@@ -75,16 +75,12 @@ IFS="${OIFS}"
 hideCurrentAccount="no"
 
 # Time Machine server
-timeMachineServer='tm.example.org'
+timeMachineServer='tm1.example.org'
 
 # Time Machine share
 # example 1: timeMachineShare="afp://${tmLogin}:${tmPassword}@${timeMachineServer}/TimeMachine/"
 # example 2: timeMachineShare="smb://${tmLogin}:${tmPassword}@${timeMachineServer}/${tmLogin}"
 timeMachineShare="smb://${tmLogin}:${tmPassword}@${timeMachineServer}/${tmLogin}"
-
-# Time Machine storage size
-diskSizeInGigaByte=`df -g / | grep '^/dev/' | awk '{ print $2 }'`
-maxTimeMachineBackupSizeInMegabyte=`echo $(($diskSizeInGigaByte*13000/10)) | awk -F '.' '{ print $1 }'`
 
 # delete this
 deleteThisApps="/Applications/GarageBand.app /Applications/iMovie.app /Applications/Keynote.app /Applications/Numbers.app /Applications/Pages.app"
@@ -103,16 +99,17 @@ echo "   Munki SoftwareRepoURL: $MunkiCSVSoftwareRepoURL"
 echo "   Munki authorization login: $MunkiCSVLogin"
 echo "   Munki authorization password: $MunkiCSVPassword"
 echo "   Munki SelfServeManifest file: $MunkiCSVSelfServeManifest"
-echo "   Time Machine Share: $timeMachineShare"
-echo "   max size of Time Machine: $maxTimeMachineBackupSizeInMegabyte MB"
 echo "   delete this: $deleteTemporaryFiles $deleteThisApps"
-echo
 
-if [ "${fileVault2Key}" == "-" ]; then echo -e "   SKIP FileVault 2 configuration, later.\n"; fi
+if [ "${MunkiCSVSoftwareRepoURL}" == "-" ] || [ "${MunkiCSVClientIdentifier}" == "-" ]; then echo -e "\n   SKIP MUNKI configuration, later.\n"; fi
+if [ "${tmLogin}" == "-" ]; then echo -e "\n   SKIP Time Machine configuration, later.\n"; else echo -e "   Time Machine Share: $timeMachineShare\n"; fi
+if [ "${fileVault2Key}" == "-" ]; then echo -e "\n   SKIP FileVault 2 configuration, later.\n"; fi
 
 # let the user check this settings
 echo "Press ENTER to continue ..."
 read
+
+todayDate=`date '+%Y-%m-%d'`
 
 
 
@@ -127,15 +124,15 @@ if [ -z "${serialNumber}" ]; then echo "ERROR: Could not find the serial number 
 if [ -z "${tmLogin}" ] || [ -z "${tmPassword}" ]; then echo "Information: Missing some settings for Time Machine."; fi
 
 # no correct Munki settings
-if [ -z "${MunkiCSVClientIdentifier}" ] || [ -z "${MunkiCSVSoftwareRepoURL}" ] || [ -z "${MunkiCSVLogin}" ] || [ -z "${MunkiCSVPassword}" ] || [ -z "${MunkiCSVSelfServeManifest}" ]; then echo "ERROR: Missing at least one of the upper settings for MUNKI."; exit -1; fi
-
+if [ "${MunkiCSVSoftwareRepoURL}" != "-" ] && [ "${MunkiCSVClientIdentifier}" != "-" ] 
+then
+	if [ -z "${MunkiCSVClientIdentifier}" ] || [ -z "${MunkiCSVSoftwareRepoURL}" ] || [ -z "${MunkiCSVLogin}" ] || [ -z "${MunkiCSVPassword}" ] || [ -z "${MunkiCSVSelfServeManifest}" ]; then echo "ERROR: Missing at least one of the upper settings for MUNKI."; exit -1; fi
+fi
 
 
 ################################
 ### setup mac configurations ###
 ################################
-
-todayDate=`date '+%Y-%m-%d'`
 
 echo "Configure some default settings ..."; echo
 
@@ -160,6 +157,9 @@ echo
 
 # delete preinstalled Apps
 (set -x; sudo rm -rf $deleteThisApps)
+
+# delete temporary files
+(set -x; sudo rm -rfv $deleteTemporaryFiles)
 
 # delete local Time Machine snapshots
 (set -x; tmutil deletelocalsnapshots /)
@@ -198,9 +198,6 @@ echo
 (set -x; sudo defaults write /Library/Preferences/com.apple.loginwindow RetriesUntilHint 3)
 (set -x; sudo defaults write /Library/Preferences/com.apple.loginwindow showInputMenu 1)
 
-# delete temporary files
-(set -x; sudo rm -rfv $deleteTemporaryFiles)
-
 sleep 2
 
 # setup FileVault 2 
@@ -212,21 +209,33 @@ else
 	echo "Enter password to try to activate FileVault 2."
 	fileVault2Key=`sudo fdesetup enable -user ${currentAdminUserNameOfThisMac} | awk -F "'" '{ print $2 }'` && echo "The new FileVault 2 key is: $fileVault2Key"
 fi
+
 sleep 2
 
 # setup Time Machine
-(set -x; open $timeMachineShare)
-echo
-echo "Please configure Time Machine manually, now OR SKIP this step."
-echo "Use the password ${tmPassword} and the encryption password $fileVault2Key for this step and PRESS ENTER TO CONTINUE."
-(set -x; open /System/Applications/System\ Preferences.app)
-read
-
-# set max Time Maschine storage size
-echo "Give the Terminal 'Full Disk Access' to try to setup the max size of $maxTimeMachineBackupSizeInMegabyte MB for Time Machine Backups and PRESS ENTER."
-read
-echo -e "Try to set the max size of Time Machine to $maxTimeMachineBackupSizeInMegabyte MB .\n"
-(set -x; sudo defaults write /Library/Preferences/com.apple.TimeMachine.plist MaxSize -integer $maxTimeMachineBackupSizeInMegabyte)
+if [ "${tmLogin}" == "-" ]
+then
+	echo "SKIP Time Machine configuration."
+else
+	(set -x; open $timeMachineShare)
+	echo
+	echo "Please configure Time Machine manually, now OR SKIP this step."
+	echo "Use the password ${tmPassword} and the encryption password $fileVault2Key for this step and PRESS ENTER TO CONTINUE."
+	(set -x; open /System/Applications/System\ Preferences.app)
+	read
+	
+	# set max Time Maschine storage size (should work only on some system versions on Macs)
+	if [ "`sw_vers -productVersion | awk -F '.' '{ print $1 }'`" -eq 10 ] && [ "`sw_vers -productVersion | awk -F '.' '{ print $2 }'`" -ge 8 ] && [ "`sw_vers -productVersion | awk -F '.' '{ print $2 }'`" -le 12 ]
+	then
+		# Time Machine storage size
+		diskSizeInGigaByte=`df -g / | grep '^/dev/' | awk '{ print $2 }'`
+		maxTimeMachineBackupSizeInMegabyte=`echo $(($diskSizeInGigaByte*17000/10)) | awk -F '.' '{ print $1 }'`
+	
+		# echo "Give the Terminal 'Full Disk Access' to try to setup the max size of $maxTimeMachineBackupSizeInMegabyte MB for Time Machine Backups and PRESS ENTER."; read
+		echo -e "Try to set the max size of Time Machine to $maxTimeMachineBackupSizeInMegabyte MB .\n"
+		(set -x; sudo defaults write /Library/Preferences/com.apple.TimeMachine.plist MaxSize -integer $maxTimeMachineBackupSizeInMegabyte)
+	fi
+fi
 
 # the automatic configuration is disabled and maybe buggy and insecure at the moment
 # cd /Volumes/TimeMachine || ( echo "ERROR: Could not mount Time Machine server."; sleep 10 )
@@ -242,44 +251,50 @@ echo -e "Try to set the max size of Time Machine to $maxTimeMachineBackupSizeInM
 ### setup munki ###
 ###################
 
-echo "Setup Munki ..."; echo
+if [ "${MunkiCSVSoftwareRepoURL}" == "-" ] || [ "${MunkiCSVClientIdentifier}" == "-" ]
+then 
+	echo -e "\n   SKIP MUNKI installation and configuration.\n"
 
-# install munki
-(set -x; munkiPackage=`find ${scriptDir}/files | grep 'munkitools' | grep '.pkg'`; sudo xattr -rc ${munkiPackage}; sudo installer -target / -pkg ${munkiPackage})
-
-echo; sleep 3
-
-# setup Munki ClientIdentifier
-(set -x; sudo defaults write /Library/Preferences/ManagedInstalls ClientIdentifier "${MunkiCSVClientIdentifier}")
-
-# setup the Munki SoftwareRepoURL
-(set -x; sudo defaults write /Library/Preferences/ManagedInstalls SoftwareRepoURL "${MunkiCSVSoftwareRepoURL}")
-
-# setup the login and password for protected packages in the Munki repository
-MunkiAuthorization=`python -c 'import base64; print "%s" % base64.b64encode("'${MunkiCSVLogin}':'${MunkiCSVPassword}'")'`
-(set -x; sudo defaults write /Library/Preferences/ManagedInstalls.plist AdditionalHttpHeaders -array "Authorization: Basic ${MunkiAuthorization}")
-
-# output the current settings
-(set -x; sudo defaults read /Library/Preferences/ManagedInstalls)
-
-# if files exists, setup the configured SelfServeManifest
-MunkiCSVSelfServeManifestFilePath="${scriptDir}/files/SelfServeManifests/${MunkiCSVSelfServeManifest}"
-if [ -f "${MunkiCSVSelfServeManifestFilePath}.default" ]; then (set -x; MunkiCSVSelfServeManifestFilePath="${MunkiCSVSelfServeManifestFilePath}.default"); fi
-if [ -f "${MunkiCSVSelfServeManifestFilePath}" ]
-then
-
-	(set -x; sudo /bin/mv "/Library/Managed Installs/manifests/SelfServeManifest" "/Library/Managed Installs/manifests/SelfServeManifest.old" 2>&1)
-	(set -x; sudo /bin/cp -a "${MunkiCSVSelfServeManifestFilePath}" "/Library/Managed Installs/manifests/SelfServeManifest")
-	(set -x; sudo /usr/bin/xattr -r -d com.apple.quarantine "/Library/Managed Installs/manifests/SelfServeManifest")
-	(set -x; sudo /usr/bin/xattr -c -r "/Library/Managed Installs/manifests/SelfServeManifest")
-	(set -x; sudo /bin/chmod 644 "/Library/Managed Installs/manifests/SelfServeManifest")
-	(set -x; sudo /usr/sbin/chown root "/Library/Managed Installs/manifests/SelfServeManifest")
-	(set -x; sudo /usr/bin/chgrp admin "/Library/Managed Installs/manifests/SelfServeManifest")
-	(set -x; sudo /bin/cat "/Library/Managed Installs/manifests/SelfServeManifest")
+else
+	
+	echo "Setup Munki software and configuration ..."; echo
+	
+	# install munki
+	(set -x; munkiPackage=`find ${scriptDir}/files | grep 'munkitools' | grep '.pkg'`; sudo xattr -rc ${munkiPackage}; sudo installer -target / -pkg ${munkiPackage})
+	
+	echo; sleep 3
+	
+	# setup Munki ClientIdentifier
+	(set -x; sudo defaults write /Library/Preferences/ManagedInstalls ClientIdentifier "${MunkiCSVClientIdentifier}")
+	
+	# setup the Munki SoftwareRepoURL
+	(set -x; sudo defaults write /Library/Preferences/ManagedInstalls SoftwareRepoURL "${MunkiCSVSoftwareRepoURL}")
+	
+	# setup the login and password for protected packages in the Munki repository
+	MunkiAuthorization=`echo -n "${MunkiCSVLogin}:${MunkiCSVPassword}" | base64`
+	(set -x; sudo defaults write /Library/Preferences/ManagedInstalls.plist AdditionalHttpHeaders -array "Authorization: Basic ${MunkiAuthorization}")
+	
+	# output the current settings
+	(set -x; sudo defaults read /Library/Preferences/ManagedInstalls)
+	
+	# if files exists, setup the configured SelfServeManifest
+	MunkiCSVSelfServeManifestFilePath="${scriptDir}/files/SelfServeManifests/${MunkiCSVSelfServeManifest}"
+	if [ -f "${MunkiCSVSelfServeManifestFilePath}.default" ]; then (set -x; MunkiCSVSelfServeManifestFilePath="${MunkiCSVSelfServeManifestFilePath}.default"); fi
+	if [ -f "${MunkiCSVSelfServeManifestFilePath}" ]
+	then
+	
+		(set -x; sudo /bin/mv "/Library/Managed Installs/manifests/SelfServeManifest" "/Library/Managed Installs/manifests/SelfServeManifest.old" 2>&1)
+		(set -x; sudo /bin/cp -a "${MunkiCSVSelfServeManifestFilePath}" "/Library/Managed Installs/manifests/SelfServeManifest")
+		(set -x; sudo /usr/bin/xattr -r -d com.apple.quarantine "/Library/Managed Installs/manifests/SelfServeManifest")
+		(set -x; sudo /usr/bin/xattr -c -r "/Library/Managed Installs/manifests/SelfServeManifest")
+		(set -x; sudo /bin/chmod 644 "/Library/Managed Installs/manifests/SelfServeManifest")
+		(set -x; sudo /usr/sbin/chown root "/Library/Managed Installs/manifests/SelfServeManifest")
+		(set -x; sudo /usr/bin/chgrp admin "/Library/Managed Installs/manifests/SelfServeManifest")
+		(set -x; sudo /bin/cat "/Library/Managed Installs/manifests/SelfServeManifest")
+	fi
+	
+	echo
 fi
-
-echo
-
 
 
 ###########################
@@ -301,8 +316,8 @@ dirOfNewMacFiles="${scriptDir}/${macName}"
 # save values
 echo '' >> "${scriptDir}/config.csv"  # if the last line have not newline 
 echo "\"${macName}\",\"${serialNumber}\",\"${tmLogin}\",\"${tmPassword}\",\"${fileVault2Key}\",\"${MunkiCSVClientIdentifier}\",\"${MunkiCSVSoftwareRepoURL}\",\"${MunkiCSVLogin}\",\"${MunkiCSVPassword}\",\"${MunkiCSVSelfServeManifest}\",\"${todayDate}\"" >> "${scriptDir}/config.csv"
-echo "Serial Number: ${serialNumber}" > "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
-echo "FileVault 2 Key: ${fileVault2Key}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
+echo "Serial number: ${serialNumber}" > "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
+echo "FileVault 2 / TM encryption key: ${fileVault2Key}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
 echo "As of: ${todayDate}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
 
 echo
