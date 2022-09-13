@@ -186,12 +186,20 @@ echo
 # show setting
 (set -x; sudo pmset -g)
 
-# set and read update setting (check for updates and install system data files and security updates)
-(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled YES)
-(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload NO)
-(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates NO)
-(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall YES)
-(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall YES)
+# set some update setting (check for updates and install system data files and security updates)
+# (set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled YES)
+# (set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload NO)
+# (set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates NO)
+# (set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall YES)
+# (set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall YES)
+
+# enable ALL update setting 
+(set -x; sudo defaults write /Library/Preferences/com.apple.commerce.plist AutoUpdate -bool TRUE)
+(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool TRUE)
+(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool TRUE)
+(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool TRUE)
+(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall -bool TRUE)
+(set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall -bool TRUE)
 
 # setting for the login windows
 (set -x; sudo defaults write /Library/Preferences/com.apple.loginwindow PowerOffDisabled 0)
