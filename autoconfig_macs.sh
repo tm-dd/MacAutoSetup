@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2022 tm-dd (Thomas Mueller)
+# Copyright (c) 2023 tm-dd (Thomas Mueller)
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -59,23 +59,21 @@ do
 
 	macName=`echo $i | awk -F '","' '{ print $1 }'`                         # the Name of the Mac
 	serialNumber=`echo $i | awk -F '","' '{ print $2 }'`                    # the serial number of the Mac
-	tmLogin=`echo $i | awk -F '","' '{ print $3 }'`                         # the login for Time Machine
-	tmPassword=`echo $i | awk -F '","' '{ print $4 }'`                      # the password for Time Machine
-	fileVault2Key=`echo $i | awk -F '","' '{ print $5 }'`                   # the FileVault 2 key
-	MunkiCSVClientIdentifier=`echo $i | awk -F '","' '{ print $6 }'`        # the ClientIdentifier for Munki
-	MunkiCSVSoftwareRepoURL=`echo $i | awk -F '","' '{ print $7 }'`         # the SoftwareRepoURL for Munki
-	MunkiCSVLogin=`echo $i | awk -F '","' '{ print $8 }'`                   # the login for later MunkiAuthorization
-	MunkiCSVPassword=`echo $i | awk -F '","' '{ print $9 }'`                # the password for later MunkiAuthorization
-	MunkiCSVSelfServeManifest=`echo $i | awk -F '","' '{ print $10 }'`      # use this file as ServeManifest for configured software installations
+	timeMachineServer=`echo $i | awk -F '","' '{ print $3 }'`               # the name of the Time Machine Server (with Samba shares)
+	tmLogin=`echo $i | awk -F '","' '{ print $4 }'`                         # the login for Time Machine
+	tmPassword=`echo $i | awk -F '","' '{ print $5 }'`                      # the password for Time Machine
+	fileVault2Key=`echo $i | awk -F '","' '{ print $6 }'`                   # the FileVault 2 key
+	MunkiCSVClientIdentifier=`echo $i | awk -F '","' '{ print $7 }'`        # the ClientIdentifier for Munki
+	MunkiCSVSoftwareRepoURL=`echo $i | awk -F '","' '{ print $8 }'`         # the SoftwareRepoURL for Munki
+	MunkiCSVLogin=`echo $i | awk -F '","' '{ print $9 }'`                   # the login for later MunkiAuthorization
+	MunkiCSVPassword=`echo $i | awk -F '","' '{ print $10 }'`               # the password for later MunkiAuthorization
+	MunkiCSVSelfServeManifest=`echo $i | awk -F '","' '{ print $11 }'`      # use this file as ServeManifest for configured software installations
 
 done
 IFS="${OIFS}"
 
 # hide the current account (can be a problem on Macs with Apple CPU, because this login was sometimes not visible, after rebooting with FileVault 2)
 hideCurrentAccount="no"
-
-# Time Machine server
-timeMachineServer='tm1.example.org'
 
 # Time Machine share
 # example 1: timeMachineShare="afp://${tmLogin}:${tmPassword}@${timeMachineServer}/TimeMachine/"
@@ -229,7 +227,7 @@ else
 	echo
 	echo "Please configure Time Machine manually, now OR SKIP this step."
 	echo "Use the password ${tmPassword} and the encryption password $fileVault2Key for this step and PRESS ENTER TO CONTINUE."
-	(set -x; open /System/Applications/System\ Preferences.app)
+	(set -x; open /System/Applications/System\ Preferences.app || open /System/Applications/System\ Settings.app)
 	read
 	
 	# set max Time Maschine storage size (should work only on some system versions on Macs)
@@ -323,9 +321,14 @@ dirOfNewMacFiles="${scriptDir}/${macName}"
 
 # save values
 echo '' >> "${scriptDir}/config.csv"  # if the last line have not newline 
-echo "\"${macName}\",\"${serialNumber}\",\"${tmLogin}\",\"${tmPassword}\",\"${fileVault2Key}\",\"${MunkiCSVClientIdentifier}\",\"${MunkiCSVSoftwareRepoURL}\",\"${MunkiCSVLogin}\",\"${MunkiCSVPassword}\",\"${MunkiCSVSelfServeManifest}\",\"${todayDate}\"" >> "${scriptDir}/config.csv"
+echo "\"${macName}\",\"${serialNumber}\",\"${timeMachineServer}\",\"${tmLogin}\",\"${tmPassword}\",\"${fileVault2Key}\",\"${MunkiCSVClientIdentifier}\",\"${MunkiCSVSoftwareRepoURL}\",\"${MunkiCSVLogin}\",\"${MunkiCSVPassword}\",\"${MunkiCSVSelfServeManifest}\",\"${todayDate}\"" >> "${scriptDir}/config.csv"
 echo "Serial number: ${serialNumber}" > "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
-echo "FileVault 2 / TM encryption key: ${fileVault2Key}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
+if [ "${tmLogin}" == "-" ] && [ "${fileVault2Key}" == "-" ]
+then
+	echo "FileVault 2 / TM encryption key NOT CONFIGURED." >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
+else
+	echo "FileVault 2 / TM encryption key: ${fileVault2Key}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
+fi
 echo "As of: ${todayDate}" >> "${dirOfNewMacFiles}/FileVault2_${macNameWithoutSpace}.txt"
 
 echo

@@ -27,6 +27,6 @@ scriptDir="`dirname $0`"
 
 echo >> "${scriptDir}/../config.csv"
 
-for i in {1..10}; do echo -n '"","","","'; echo $(ps awux ; dd if=/dev/urandom bs=1024 count=1 2> /dev/null) | md5sum | awk '{ print "" $1 }' | tr '\n' '"'; echo ',"",""'; done >> "${scriptDir}/../config.csv"
+for i in {1..10}; do echo -n '"","","","","'; echo $(ps awux ; dd if=/dev/urandom bs=1024 count=1 2> /dev/null) | md5sum | awk '{ print "" $1 }' | tr '\n' '"'; echo ',"",""'; done >> "${scriptDir}/../config.csv"
 
 exit 0
