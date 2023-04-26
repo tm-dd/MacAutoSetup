@@ -42,6 +42,16 @@ if [ ! -f "${scriptDir}/config.csv" ]; then echo 'ERROR: Could not read CSV file
 ### settings ###
 ################
 
+# the time zone for the Mac
+newTimeZone='Europe/Berlin'
+
+# hide the current account (can be a problem on Macs with Apple CPU, because this login was sometimes not visible, after rebooting with FileVault 2)
+hideCurrentAccount="no"
+
+# delete this
+deleteThisApps="/Applications/GarageBand.app /Applications/iMovie.app /Applications/Keynote.app /Applications/Numbers.app /Applications/Pages.app"
+deleteTemporaryFiles="/Users/Shared/Relocated\ Items /Users/*/Desktop/*.nosync"
+
 # the current admin account
 currentAdminUserNameOfThisMac=`whoami`
 
@@ -72,17 +82,10 @@ do
 done
 IFS="${OIFS}"
 
-# hide the current account (can be a problem on Macs with Apple CPU, because this login was sometimes not visible, after rebooting with FileVault 2)
-hideCurrentAccount="no"
-
 # Time Machine share
 # example 1: timeMachineShare="afp://${tmLogin}:${tmPassword}@${timeMachineServer}/TimeMachine/"
 # example 2: timeMachineShare="smb://${tmLogin}:${tmPassword}@${timeMachineServer}/${tmLogin}"
 timeMachineShare="smb://${tmLogin}:${tmPassword}@${timeMachineServer}/${tmLogin}"
-
-# delete this
-deleteThisApps="/Applications/GarageBand.app /Applications/iMovie.app /Applications/Keynote.app /Applications/Numbers.app /Applications/Pages.app"
-deleteTemporaryFiles="/Users/Shared/Relocated\ Items /Users/*/Desktop/*.nosync"
 
 # output settings
 echo
@@ -107,6 +110,7 @@ if [ "${fileVault2Key}" == "-" ]; then echo -e "\n   SKIP FileVault 2 configurat
 echo "Press ENTER to continue ..."
 read
 
+# the date (to write in files)
 todayDate=`date '+%Y-%m-%d'`
 
 
@@ -183,6 +187,9 @@ echo
 (set -x; sudo pmset -a womp 1)
 # show setting
 (set -x; sudo pmset -g)
+
+# set the time zone
+if [ -n "${newTimeZone}" ]; then (set -x; sudo systemsetup -settimezone "$newTimeZone"); fi
 
 # set some update setting (check for updates and install system data files and security updates)
 # (set -x; sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled YES)
