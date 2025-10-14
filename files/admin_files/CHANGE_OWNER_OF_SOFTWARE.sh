@@ -3,7 +3,7 @@
 # This Script change the owner of Software in "/Applications". It ask for the old username and change all files of this user (in this directory) to a new identity. 
 # This is useful for software which have a build in update process and the software was installed not for the user which using the software normally.
 #
-# Copyright (c) 2020 tm-dd (Thomas Mueller)
+# Copyright (c) 2025 tm-dd (Thomas Mueller)
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ read NEWUSERANDGROUP
 echo
 
 find /Applications -user $OLDUSER -maxdepth 1 -exec echo sudo chown -R $NEWUSERANDGROUP \"{}\" \; > $TMPFILE
-echo sudo chown -R $NEWUSERANDGROUP /anaconda* >> $TMPFILE
+echo sudo chown -R $NEWUSERANDGROUP /opt/miniforge3 >> $TMPFILE
 
 cat $TMPFILE
 echo
