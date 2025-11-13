@@ -231,8 +231,8 @@ else
 	echo
 
 	# let the user change the access for Munki
-	echo "Please add 'managedsoftwareupdate' to 'System Setting' -> 'Privacy & Security' -> 'Full Disk Access' and 'App Management'. Then press Enter."
-	open /usr/local/munki
+	echo "Please add the 'Managed Software Centre' to 'System Setting' -> 'Privacy & Security' -> 'Full Disk Access' and 'App Management'. Then press Enter."
+	open /Applications
 	open /System/Applications/System\ Settings.app
 	read
 	
@@ -279,8 +279,25 @@ then
 	echo "SKIP FileVault 2 configuration and create a random md5sum for the time machine encryption."
 	fileVault2Key=`echo $(ps awux ; dd if=/dev/random bs=1024 count=1 2> /dev/null) | md5 | awk '{ print "" $1 }'`
 else
-	echo "Enter password to try to activate FileVault 2."
-	fileVault2Key=`sudo fdesetup enable -user ${currentAdminUserNameOfThisMac} | awk -F "'" '{ print $2 }'` && echo "The new FileVault 2 key is: $fileVault2Key"
+echo "Enter password to try to activate FileVault 2."
+fileVault2Key=`sudo fdesetup enable -user ${currentAdminUserNameOfThisMac} | awk -F "'" '{ print $2 }'` && echo "The current FileVault 2 key is: $fileVault2Key"
+while [ "$fileVault2Key" == "" ]
+do
+	echo 'Find the FileVault key in the "System Settings" by "Privacy & Security". Make a screenshot and copy the key.'
+	sleep 1
+	open /System/Applications/System\ Settings.app
+	echo
+	echo -n "Please enter the FileVault Recovery key: "
+	read fileVault2Key
+	echo
+	echo -n "You inserted the FileVault 2 key '$fileVault2Key'. Is this correct (y/n) ? "
+	read i
+	if [ "$i" != "y" ]
+	then
+		fileVault2Key=''
+		echo
+	fi
+done
 fi
 
 sleep 2
@@ -365,7 +382,7 @@ echo
 echo
 
 # run the update script
-cp /Volumes/USB/files/admin_files/start_updates_mac.sh /tmp/
+cp "${scriptDir}/files/admin_files/start_updates_mac.sh" /tmp/
 exec sudo /bin/bash "/tmp/start_updates_mac.sh" 
 
 exit 0
