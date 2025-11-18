@@ -280,10 +280,10 @@ then
 	fileVault2Key=`echo $(ps awux ; dd if=/dev/random bs=1024 count=1 2> /dev/null) | md5 | awk '{ print "" $1 }'`
 else
 echo "Enter password to try to activate FileVault 2."
-fileVault2Key=`sudo fdesetup enable -user ${currentAdminUserNameOfThisMac} | awk -F "'" '{ print $2 }'` && echo "The current FileVault 2 key is: $fileVault2Key"
+fileVault2Key=`sudo fdesetup enable -s -user ${currentAdminUserNameOfThisMac} | awk -F "'" '{ print $2 }'` && echo "The current FileVault 2 key is: $fileVault2Key"
 while [ "$fileVault2Key" == "" ]
 do
-	echo 'Find the FileVault key in the "System Settings" by "Privacy & Security". Make a screenshot and copy the key.'
+	echo 'Find the FileVault key HERE or go in the "System Settings" by "Privacy & Security" and make a screenshot of the key and copy it.'
 	sleep 1
 	open /System/Applications/System\ Settings.app
 	echo
