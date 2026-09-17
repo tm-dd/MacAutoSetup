@@ -231,8 +231,9 @@ else
 	echo
 
 	# let the user change the access for Munki
-	echo "Please add the 'Managed Software Centre' to 'System Setting' -> 'Privacy & Security' -> 'Full Disk Access' and 'App Management'. Then press Enter."
+	echo "Please add the 'Managed Software Centre' and 'managedsoftwareupdate' to 'System Setting' -> 'Privacy & Security' -> 'Full Disk Access' and 'App Management'. Then press Enter."
 	open /Applications
+	open /usr/local/munki
 	open /System/Applications/System\ Settings.app
 	read
 	
